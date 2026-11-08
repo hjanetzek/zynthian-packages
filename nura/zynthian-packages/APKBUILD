@@ -1,0 +1,26 @@
+# zynthian-packages for postmarketOS/Nura: the catalogue of zynthian's installable content packs
+# (soundfonts, samples, IRs): per pack its info.yml, art and a bash script that downloads the data
+# from its origin (os.zynthian.org, GitHub). No data itself. webconf's "Extra Packs" page reads it
+# from $ZYNTHIAN_DIR/zynthian-packages (/usr/share/zynthian/zynthian-packages) and runs the scripts.
+#
+# Built from a checkout of zynthian-packages (nura branch):
+#   pmbootstrap build --src=/path/to/zynthian-packages zynthian-packages
+pkgname=zynthian-packages
+pkgver=0_git20261108
+pkgrel=0
+pkgdesc="zynthian synthesizer platform: catalogue and install scripts of the content packs"
+url="https://github.com/zynthian/zynthian-packages"
+arch="noarch"
+license="GPL-3.0-or-later"
+options="!check"
+# The pack scripts: bash, downloads with wget or git, archives with tar/xz or unzip
+depends="bash git tar unzip wget xz"
+builddir="$srcdir/$pkgname"
+
+package() {
+	local dest="$pkgdir"/usr/share/zynthian/zynthian-packages
+	mkdir -p "$dest"
+	# The catalogue as the repository has it, without its CI and this recipe
+	tar -cf - --exclude=./.git --exclude=./.github --exclude=./nura . | tar -xf - -C "$dest"
+	find "$dest" -name '*.sh' -exec chmod 755 {} +
+}
