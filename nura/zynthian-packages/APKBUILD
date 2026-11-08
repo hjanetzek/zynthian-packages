@@ -2,12 +2,13 @@
 # (soundfonts, samples, IRs): per pack its info.yml, art and a bash script that downloads the data
 # from its origin (os.zynthian.org, GitHub). No data itself. webconf's "Extra Packs" page reads it
 # from $ZYNTHIAN_DIR/zynthian-packages (/usr/share/zynthian/zynthian-packages) and runs the scripts.
+# zynthian-factory-content installs what ZynthianOS' image comes with (see the script).
 #
 # Built from a checkout of zynthian-packages (nura branch):
 #   pmbootstrap build --src=/path/to/zynthian-packages zynthian-packages
 pkgname=zynthian-packages
 pkgver=0_git20261108
-pkgrel=1
+pkgrel=2
 pkgdesc="zynthian synthesizer platform: catalogue and install scripts of the content packs"
 url="https://github.com/zynthian/zynthian-packages"
 arch="noarch"
@@ -28,4 +29,8 @@ package() {
 	# /usr/share/zynthian/zynthian-data (zynthian-ui's desktop environment picks it up as
 	# ZYNTHIAN_PACKS_DATA_DIR). webconf runs as the device user: group audio, setgid.
 	install -d -m 2775 -g audio "$pkgdir"/var/lib/zynthian/zynthian-data
+
+	# What ZynthianOS' image includes and Nura's leaves out (large data from elsewhere): packages
+	# kept out of the image and the packs ZynthianOS has installed, for the factory snapshots
+	install -Dm755 nura/zynthian-packages/zynthian-factory-content -t "$pkgdir"/usr/bin/
 }

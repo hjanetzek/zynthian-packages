@@ -1,0 +1,109 @@
+#!/bin/bash
+# zynthian-factory-content: install the content that ZynthianOS' image comes with and Nura's image
+# leaves out (large data from elsewhere), so that every factory snapshot loads all its chains:
+#
+# - packages of the Nura repository kept out of the image: the FluidR3 GM/GS SoundFonts, FluidPlug
+#   (its SoundFont instruments), Vaporizer2's extra wavetables and presets;
+# - the zynthian-packages content packs that ZynthianOS has installed (the factory SoundFonts and
+#   SFZs, pianos, drum kits), plus the Salamander Drumkit of the factory snapshot "014-Useless".
+#
+# The packs go where webconf's Extra Packs page puts them (ZYNTHIAN_PACKS_DATA_DIR, system data
+# beside the read-only zynthian-data) and show there as installed; uninstall them there.
+#
+# Usage: zynthian-factory-content [-n] [-l]
+#   -n  dry run: print what would be installed
+#   -l  list the content and whether it is installed
+#
+# Run as the device user (the one zynthian runs as); the packages are installed with sudo or doas.
+# About 2.5 GB to download. Restart zynthian afterwards (or rescan the LV2 plugins).
+set -e  # not -u: zynthian's environment script reads variables that may be unset
+
+APKS="fluid-soundfont fluidplug-lv2 vaporizer2-lv2-data-extra"
+PACKS="
+Soundfonts/Zynthian Factory SFZs
+Soundfonts/Zynthian Factory SF2s
+Soundfonts/Zynthian Salamander Grand
+Soundfonts/Hydrogen Drumkits
+Soundfonts/Stevie Clavinet
+Soundfonts/jRhodes3d
+Soundfonts/Zynthian Meatbass
+Soundfonts/TR808-fischer
+Soundfonts/DrawbarOrgan
+Soundfonts/Salamander Drumkit
+"
+
+dry=
+list=
+while getopts nlh opt; do
+	case $opt in
+		n) dry=1 ;;
+		l) list=1 ;;
+		*) sed -n '2,/^set -e /p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
+	esac
+done
+
+if [ "$(id -u)" = 0 ]; then
+	echo "Run this as the device user, not as root: the packs are recorded in that user's zynthian configuration" >&2
+	exit 1
+fi
+
+# zynthian's environment: ZYNTHIAN_DATA_DIR, ZYNTHIAN_PACKS_DATA_DIR, ZYNTHIAN_CONFIG_DIR
+export ZYNTHIAN_DIR="${ZYNTHIAN_DIR:-/usr/share/zynthian}"
+. "$ZYNTHIAN_DIR/zynthian-ui/desktop/zynthian_desktop_env.sh"
+catalogue="$ZYNTHIAN_DIR/zynthian-packages"
+packs_dir="${ZYNTHIAN_PACKS_DATA_DIR:-$ZYNTHIAN_DATA_DIR}"
+installed_dir="$ZYNTHIAN_CONFIG_DIR/packages"
+
+# A pack's script, run as webconf runs it: against the packs' data directory
+pack() {
+	ZYNTHIAN_DATA_DIR="$packs_dir" bash "$catalogue/$1/${1##*/}.sh" "$2"
+}
+
+if [ -n "$list" ]; then
+	for p in $APKS; do
+		apk info -e "$p" >/dev/null 2>&1 && s=installed || s="not installed"
+		echo "package $p: $s"
+	done
+	echo "$PACKS" | while IFS= read -r p; do
+		[ -n "$p" ] || continue
+		echo "pack ${p#*/}: $(pack "$p" installed | head -n 1)"
+	done
+	exit 0
+fi
+
+# The packages
+missing=
+for p in $APKS; do
+	apk info -e "$p" >/dev/null 2>&1 || missing="$missing $p"
+done
+if [ -n "$missing" ]; then
+	echo "installing packages:$missing"
+	if [ -z "$dry" ]; then
+		if command -v sudo >/dev/null; then su=sudo; elif command -v doas >/dev/null; then su=doas; else
+			echo "neither sudo nor doas: install as root: apk add$missing" >&2; exit 1
+		fi
+		# shellcheck disable=SC2086 # a list of packages
+		$su apk add $missing
+	fi
+fi
+
+# The packs, recorded as webconf records them (its "installed packages" directory)
+echo "$PACKS" | while IFS= read -r p; do
+	[ -n "$p" ] || continue
+	name=${p#*/}
+	if [ "$(pack "$p" installed | head -n 1)" = installed ]; then
+		echo "pack $name: installed"
+		continue
+	fi
+	echo "pack $name: installing ($(sed -n 's/^size: *//p' "$catalogue/$p/info.yml" | head -n 1))"
+	[ -z "$dry" ] || continue
+	pack "$p" install >/dev/null 2>&1 || true
+	if [ "$(pack "$p" installed | head -n 1)" != installed ]; then
+		echo "pack $name: FAILED" >&2
+		continue
+	fi
+	mkdir -p "$installed_dir/${p%%/*}"
+	cp -r "$catalogue/$p" "$installed_dir/${p%%/*}/"
+done
+
+[ -n "$dry" ] || echo "done: restart zynthian to use the new content"
