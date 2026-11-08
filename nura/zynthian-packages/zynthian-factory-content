@@ -15,7 +15,8 @@
 #   -l  list the content and whether it is installed
 #
 # Run as the device user (the one zynthian runs as); the packages are installed with sudo or doas.
-# About 2.5 GB to download. Restart zynthian afterwards (or rescan the LV2 plugins).
+# About 3 GB to download, 3.5 GB installed. Restart zynthian afterwards. Documentation:
+# https://github.com/hjanetzek/nura-builds/blob/main/docs/factory-content.md
 set -e  # not -u: zynthian's environment script reads variables that may be unset
 
 APKS="fluid-soundfont fluidplug-lv2 vaporizer2-lv2-data-extra"
