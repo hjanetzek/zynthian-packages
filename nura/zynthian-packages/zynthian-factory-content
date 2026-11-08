@@ -95,7 +95,7 @@ echo "$PACKS" | while IFS= read -r p; do
 		echo "pack $name: installed"
 		continue
 	fi
-	echo "pack $name: installing ($(sed -n 's/^size: *//p' "$catalogue/$p/info.yml" | head -n 1))"
+	echo "pack $name: installing ($(sed -n 's/^size: *\"\{0,1\}\([^\"]*\)\"\{0,1\}/\1/p' "$catalogue/$p/info.yml" | head -n 1))"
 	[ -z "$dry" ] || continue
 	pack "$p" install >/dev/null 2>&1 || true
 	if [ "$(pack "$p" installed | head -n 1)" != installed ]; then
