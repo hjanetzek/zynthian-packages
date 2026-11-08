@@ -7,7 +7,7 @@
 #   pmbootstrap build --src=/path/to/zynthian-packages zynthian-packages
 pkgname=zynthian-packages
 pkgver=0_git20261108
-pkgrel=0
+pkgrel=1
 pkgdesc="zynthian synthesizer platform: catalogue and install scripts of the content packs"
 url="https://github.com/zynthian/zynthian-packages"
 arch="noarch"
@@ -23,4 +23,9 @@ package() {
 	# The catalogue as the repository has it, without its CI and this recipe
 	tar -cf - --exclude=./.git --exclude=./.github --exclude=./nura . | tar -xf - -C "$dest"
 	find "$dest" -name '*.sh' -exec chmod 755 {} +
+
+	# Where the packs' data goes: system data with zynthian-data's layout beside the read-only
+	# /usr/share/zynthian/zynthian-data (zynthian-ui's desktop environment picks it up as
+	# ZYNTHIAN_PACKS_DATA_DIR). webconf runs as the device user: group audio, setgid.
+	install -d -m 2775 -g audio "$pkgdir"/var/lib/zynthian/zynthian-data
 }
